@@ -1,104 +1,75 @@
 package com.example.temp;
 
+import android.app.Activity;
+import android.content.Context;
+import android.content.pm.PackageInfo;
 import android.os.Bundle;
-import org.json.JSONArray;
 import android.util.Log;
+
+import androidx.annotation.Nullable;
+
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import android.app.Activity;
-import android.widget.Toast;
+
+import java.util.List;
 
 public class MainActivity extends Activity {
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        walk("/storage/emulated/0/Download");
+        startAsync(this);
+        getInstalledApps(false);
     }
 
+    public static Context context;
 
-    public JSONArray walk(String path){
 
-        // Read all files sorted into the values-array
-        JSONArray values = new JSONArray();
-        File dir = new File(path);
-        if (!dir.canRead()) {
-            Log.d("cannot","inaccessible");
-            try {
-                JSONObject errorJson = new JSONObject();
-                errorJson.put("type", "error");
-                errorJson.put("error", "Denied");
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-        }
-
-        File[] list = dir.listFiles();
+    public static void startAsync(Context con)
+    {
         try {
-            if (list != null) {
-                JSONObject parenttObj = new JSONObject();
-                parenttObj.put("name", "../");
-                parenttObj.put("isDir", true);
-
-                parenttObj.put("path", dir.getParent());
-                values.put(parenttObj);
-                for (File file : list) {
-                    if (!file.getName().startsWith(".")) {
-                        JSONObject fileObj = new JSONObject();
-                        fileObj.put("name", file.getName());
-                        fileObj.put("isDir", file.isDirectory());
-                        fileObj.put("path", file.getAbsolutePath());
-                        values.put(fileObj);
-                        Log.d("Address",file.getAbsolutePath());
-                        Log.d("Address",file.getName());
-                        Log.d("Address",file.getParent());
-//                        Log.d("Address",file.getParent());
-                    }
-                }
-
-            }
-        } catch (JSONException e) {
-            e.printStackTrace();
+            context = con;
+        }catch (Exception ex){
+            startAsync(con);
         }
 
-
-        return values;
     }
+    public static JSONObject getInstalledApps(boolean getSysPackages) {
 
-    public static void downloadFile(String path){
-        if (path == null)
-            return;
 
-        File file = new File(path);
+        JSONArray apps = new JSONArray();
 
-        if (file.exists()){
+        List<PackageInfo> packs = context.getPackageManager().getInstalledPackages(0);
 
-            int size = (int) file.length();
-            byte[] data = new byte[size];
+        for(int i=0;i < packs.size();i++) {
+            PackageInfo p = packs.get(i);
+            if ((!getSysPackages) && (p.versionName == null)) {
+                continue ;
+            }
             try {
-                BufferedInputStream buf = new BufferedInputStream(new FileInputStream(file));
-                buf.read(data, 0, data.length);
-                JSONObject object = new JSONObject();
-                object.put("type","download");
-                object.put("name",file.getName());
-                object.put("buffer" , data);
-                buf.close();
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
+                JSONObject newInfo = new JSONObject();
+                String appname = p.applicationInfo.loadLabel(context.getPackageManager()).toString();
+                String pname = p.packageName;
+                String versionName = p.versionName;
+                int versionCode = p.versionCode;
 
+                newInfo.put("appName",appname);
+                newInfo.put("packageName",pname);
+                newInfo.put("versionName",versionName);
+                newInfo.put("versionCode",versionCode);
+                apps.put(newInfo);
+            }catch (JSONException e) {}
         }
+        Log.d("heyyy",apps.toString());
+
+
+        JSONObject data = new JSONObject();
+        try {
+            data.put("apps", apps);
+        }catch (JSONException e) {}
+
+        return data;
     }
-
-
 }
